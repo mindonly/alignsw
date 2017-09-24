@@ -60,18 +60,8 @@ int gapNorth(const matrix<int> &mat, int row, int col) {
         exit(-1);
     }
 
-    #ifdef DEBUG
-        cout << "\ngapNorth():\n";
-        cout << "(" << row << ", " << col << ")\n";
-    #endif
-    
     // North-adjusted row
     int adjRow = row - 1;
-
-    #ifdef DEBUG
-        cout << "(" << adjRow << ", " << col << ")\n";
-        cout << mat(adjRow, col) - 2;
-    #endif
 
     return mat(adjRow, col) - 2;
 }
@@ -86,19 +76,9 @@ int gapWest(const matrix<int> &mat, int row, int col) {
         exit(-1); 
     }
 
-    #ifdef DEBUG
-        cout << "\ngapWest():\n";
-        cout << "(" << row << ", " << col << ")\n";
-    #endif
-
     // West-adjusted col
     int adjCol = col - 1;
     
-    #ifdef DEBUG
-        cout << "(" << row << ", " << adjCol << ")\n";
-        cout << mat(row, adjCol) - 2;
-    #endif
-
     return mat(row, adjCol) - 2;
 }
 
@@ -115,10 +95,6 @@ int match(const std::vector<char> &s,
         exit(-1); 
     }
 
-    #ifdef DEBUG
-        cout << s[row-1] << " " << t[col-1] << endl;
-    #endif
-    
     if (s[row-1] == t[col-1])
         return 1;
     else if (t[col-1] == '?')
@@ -141,42 +117,32 @@ int northWest(const matrix<int> &mat,
         exit(-1); 
     }
 
-    #ifdef DEBUG
-        cout << "\nnorthWest():\n";
-        cout << "(" << row << ", " << col << ")\n";
-    #endif
-
     // North-West adjustment
     int adjRow = row - 1;
     int adjCol = col - 1;
 
-    #ifdef DEBUG
-        cout << "(" << adjRow << ", " << adjCol << ")\n";
-        cout << mat(adjRow, adjCol) + match(s, t, row, col) << endl;
-    #endif
-
     return mat(adjRow, adjCol) + match(s, t, row, col);
 }
 
+/*
+ * compute the source cell for a Smith-Waterman score
+ * return [tuple<int, int>]
+ */
 tuple<int, int> computePrev(int idx, int row, int col) {
     if (row == 0 || col == 0) {
         cerr << "\nerror: nucleotide coordinates cannot be zero.\n";
         exit(-1); 
     }
 
-    /* index key:
-       [0] = North
-       [1] = NW
-       [2] = West */
     switch (idx) {
-        case 0:
+        case 0:     // North
             row = row - 1;
             break;
-        case 1:
+        case 1:     // NW
             row = row - 1;
             col = col - 1;
             break;
-        case 2:
+        case 2:     // West
             col = col - 1;
             break;
         default:
@@ -187,6 +153,9 @@ tuple<int, int> computePrev(int idx, int row, int col) {
     return make_tuple(row, col);
 }
 
+/*
+ * update Smith-Waterman score for similarity matrix cell
+ */
 void updateScore(matrix<int> &mat, matrix<tuple<int, int>> &trc,
                  const std::vector<char> &s,
                  const std::vector<char> &t,
@@ -202,42 +171,23 @@ void updateScore(matrix<int> &mat, matrix<tuple<int, int>> &trc,
     scores.push_back(northWest(mat, s, t, row, col));
     scores.push_back(gapWest(mat, row, col));
 
-    #ifdef DEBUG
-        cout << "\nupdateScore():\n";
-        cout << "(" << row << ", " << col << ")\n";
-        cout << "\n\nscores:\n";
-        for (int i = 0; i < scores.size(); i++)
-            cout << scores[i] << " " << endl;
-
-        cout << "\nmaximum score:\n";
-    #endif
-    
     auto top_score = max_element(scores.begin(), scores.end());
     auto top_index = distance(scores.begin(), top_score);
     
     if (*top_score < 0) {
         mat(row, col) = 0;
-        #ifdef DEBUG
-            cout << 0 << endl;
-        #endif
     }
     else {
         mat(row, col) = *top_score;
-        #ifdef DEBUG
-            cout << *top_score << endl;
-        #endif
     }
-    #ifdef DEBUG
-        cout << "index: " << top_index << endl;
-    #endif
 
     trc(row, col) = computePrev(top_index, row, col);
 }
 
 /*
- find the largest, rightmost, lowermost element
- of a uBLAS matrix and its [x, y] coordinates
- returns: [tuple<int, int, int>]
+ * find the largest, rightmost, lowermost element
+ * of a uBLAS matrix and its [x, y] coordinates
+ * returns: [tuple<int, int, int>]
  */
 tuple<int, int, int> maxElem(const matrix<int> &mat) {
     int x_sz = mat.size1() - 1;
@@ -300,6 +250,9 @@ int main(int argc, char* argv[]) {
     auto tup = maxElem(sim_mat);
     cout << "(" << get<0>(tup) << ", [" << get<1>(tup) << ", " << get<2>(tup) << "])\n";
     cout << "similarity matrix dims: (" << sim_mat.size1() << "x" << sim_mat.size2() << ")" << endl;
-    /* cout << "[1751, 48] " << sim_mat(1751, 48) << endl;
-    cout << "[1685, 48] " << sim_mat(1685, 48) << endl; */
+   
+    /*
+    cout << "[1751, 48] " << sim_mat(1751, 48) << endl;
+    cout << "[1685, 48] " << sim_mat(1685, 48) << endl; 
+    */
 }
