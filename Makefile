@@ -13,7 +13,7 @@ ECHO=echo
 
 $(P): $(OBJS)
 
-all:	align test
+all:	align test3
 test1:
 	@echo '*** TEST EX1 ***'
 	./$(EXE) ex1_seq.txt ex1_unk.txt
