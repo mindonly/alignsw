@@ -13,26 +13,40 @@ ECHO=echo
 
 $(P): $(OBJS)
 
-all:	align t1 t2
+all:	clear $(EXE) t1 t2
 
 t1:
-	@echo '*** TEST EX1 ***'
+	@echo '************'
+	@echo '* TEST EX1 *'
+	@echo '************'
 	./$(EXE) ex1_seq.txt ex1_unk.txt
 	@echo
-	@sleep 2
 
 t2:
-	@echo '*** TEST EX2 ***'
+	@echo '************'
+	@echo '* TEST EX2 *'
+	@echo '************'
 	./$(EXE) ex2_seq.txt ex2_unk.txt
 	@echo
-	@sleep 2
 
 t3:
-	@echo '*** TEST HIV ***'
+	@echo '************'
+	@echo '* TEST HIV *'
+	@echo '************'
 	./$(EXE) HIV-1_db.fasta HIV-1_Polymerase.txt
+	@echo
+
+t4:
+	@echo '****************'
+	@echo '* TEST HIV (2) *'
+	@echo '****************'
+	./$(EXE) HIV-1_db.fasta.wolffe HIV-1_Polymerase.txt.wolffe
 	@echo
 
 t:	t1 t2 t3
 
 clean:
 	$(RM) $(EXE)
+
+clear:
+	@clear

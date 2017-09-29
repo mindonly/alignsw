@@ -49,7 +49,7 @@ void printSimMatrix(const matrix<int> &mat) {
 }
 
 /*
- * print a uBLAS matrix<tup> (tuple)
+ * print a uBLAS matrix<tup<int, int>> (tuple)
  */
 void printTupMatrix(const matrix<tuple<int, int>> &mat) {
     for (int i = 0; i < mat.size1(); i++) {
@@ -62,68 +62,68 @@ void printTupMatrix(const matrix<tuple<int, int>> &mat) {
 }
 
 /*
- * return a Smith-Waterman score for a North cell
+ * retrieve S-W score for a North cell, minus GAP_PENALTY
  * returns: [int]
  */
-int North(const matrix<int> &mat, int row, int col) { 
+int North(const matrix<int> &smat, int row, int col) { 
     if (row == 0 || col == 0) {
-        cerr << "\nerror: nucleotide coordinates cannot be zero.\n";
+        cerr << "\nNorth() error: nucleotide coordinates cannot be zero.\n";
         exit(-1);
     }
 
     // North-adjusted row
     int adjRow = row - 1;
 
-    return mat(adjRow, col) - 2;
+    return smat(adjRow, col) - GAP_PENALTY;
 }
 
 /*
- * return a Smith-Waterman score for a West cell
+ * retrieve S-W score for a West cell, minus GAP_PENALTY
  * returns: [int]
  */
-int West(const matrix<int> &mat, int row, int col) {
+int West(const matrix<int> &smat, int row, int col) {
     if (row == 0 || col == 0) {
-        cerr << "\nerror: nucleotide coordinates cannot be zero.\n";
+        cerr << "\nWest() error: nucleotide coordinates cannot be zero.\n";
         exit(-1); 
     }
 
     // West-adjusted col
     int adjCol = col - 1;
 
-    return mat(row, adjCol) - 2;
+    return smat(row, adjCol) - GAP_PENALTY;
 }
 
 /*
- * determine if two nucleotides match
+ * determine if two nucleotides match, see MATCH_BONUS
  * returns: [int]
  */
-int match(const std::vector<char> &s, 
-          const std::vector<char> &t, 
-          int row, int col) {
+int similarity(const std::vector<char> &s, 
+               const std::vector<char> &t, 
+               int row, int col) {
     
     if (row == 0 || col == 0) {
-        cerr << "\nerror: nucleotide coordinates cannot be zero.\n";
+        cerr << "\nsimilarity() error: nucleotide coordinates cannot be zero.\n";
         exit(-1); 
     }
 
-    // s and t are 0-indexed
-    if ( s[row-1] == t[col-1] || s[row-1] == '?' || t[col-1] == '?' )
-        return 1;
+        // s and t are 0-indexed
+    if ( (s[row-1] == t[col-1]) || s[row-1] == '?' || t[col-1] == '?' )
+        return MATCH_BONUS;
     else
-        return -1;
+        return MATCH_BONUS * -1;
 }
 
 /*
  * return a Smith-Waterman score for a NorthWest cell
  * returns: [int]
  */
-int NorthWest(const matrix<int> &mat,
+int NorthWest(const matrix<int> &smat,
               const std::vector<char> &s,
               const std::vector<char> &t,
               int row, int col) {
 
     if (row == 0 || col == 0) {
-        cerr << "\nerror: nucleotide coordinates cannot be zero.\n";
+        cerr << "\nNorthWest() error: nucleotide coordinates cannot be zero.\n";
         exit(-1); 
     }
 
@@ -131,7 +131,7 @@ int NorthWest(const matrix<int> &mat,
     int adjRow = row - 1;
     int adjCol = col - 1;
 
-    return mat(adjRow, adjCol) + match(s, t, row, col);
+    return smat(adjRow, adjCol) + similarity(s, t, row, col);
 }
 
 /*
@@ -140,7 +140,7 @@ int NorthWest(const matrix<int> &mat,
  */
 tuple<int, int> source(int idx, int row, int col) {
     if (row == 0 || col == 0) {
-        cerr << "\nerror: nucleotide coordinates cannot be zero.\n";
+        cerr << "\nsource() error: nucleotide coordinates cannot be zero.\n";
         exit(-1); 
     }
 
@@ -156,7 +156,7 @@ tuple<int, int> source(int idx, int row, int col) {
             col = col - 1;
             break;
         default:
-            cerr << "\nerror: invalid input.\n";
+            cerr << "\nsource() error: invalid index.\n";
             break;
     }
 
@@ -164,32 +164,37 @@ tuple<int, int> source(int idx, int row, int col) {
 }
 
 /*
- * update Smith-Waterman score for similarity matrix cell
+ * update Smith-Waterman score for each sim. matrix (smat) cell;
+ * also update source for each score in tuple matrix (tmat)
  */
-void SmithWaterman(matrix<int> &mat, matrix<tuple<int, int>> &trc,
-                 const std::vector<char> &s,
-                 const std::vector<char> &t,
-                 int row, int col) {
+void SmithWaterman(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
+                   const std::vector<char> &s,
+                   const std::vector<char> &t,
+                   int row, int col) {
 
     if (row == 0 || col == 0) {
-        cerr << "\nerror: nucleotide coordinates cannot be zero.\n";
+        cerr << "\nSmithWaterman() error: nucleotide coordinates cannot be zero.\n";
         exit(-1); 
     }
-    
+   
+        // set up vector<int> of neighbor scores
     std::vector<int> scores;
-    scores.push_back(North(mat, row, col));
-    scores.push_back(NorthWest(mat, s, t, row, col));
-    scores.push_back(West(mat, row, col));
+    scores.push_back(North(smat, row, col));
+    scores.push_back(NorthWest(smat, s, t, row, col));
+    scores.push_back(West(smat, row, col));
 
+        // get largest neighbor score
     auto top_score = max_element(scores.begin(), scores.end());
-    auto top_index = distance(scores.begin(), top_score);
     
     if (*top_score < 0)
         *top_score = 0;
 
-    mat(row, col) = *top_score;
-
-    trc(row, col) = source(top_index, row, col);
+        // update similarity matrix
+    smat(row, col) = *top_score;
+   
+        // get top score index; update tuple matrix with source() 
+    int  top_index = distance(scores.begin(), top_score);
+    tmat(row, col) = source(top_index, row, col);
 }
 
 /*
@@ -197,18 +202,18 @@ void SmithWaterman(matrix<int> &mat, matrix<tuple<int, int>> &trc,
  * uBLAS S-W similarity matrix and its [x, y] coordinates
  * returns: [tuple<int, int, int>]
  */
-tuple<int, int, int> maxScore(const matrix<int> &mat) {
-    int x_sz = mat.size1() - 1;
-    int y_sz = mat.size2() - 1;
+tuple<int, int, int> maxScore(const matrix<int> &smat) {
+    int s_sz = smat.size1() - 1;
+    int t_sz = smat.size2() - 1;
     
-    int cur_max = mat(x_sz, y_sz);
-    int row = 0;
-    int col = 0;
+    int cur_max = 0;
+    int row = s_sz;
+    int col = t_sz;
 
-    for (int i = x_sz; i >= 1; i--)
-        for (int j = y_sz; j >= 1; j--) {
-            if (mat(i, j) > cur_max) {
-                cur_max = mat(i, j);
+    for (int i = s_sz; i >= 1; i--)
+        for (int j = t_sz; j >= 1; j--) {
+            if (smat(i, j) > cur_max) {
+                cur_max = smat(i, j);
                 row = i;
                 col = j;
             }
@@ -226,9 +231,11 @@ int main(int argc, char* argv[]) {
         cerr << "usage: align sequence_file unknown_file\n";
         exit(-1);
     }
+        // command-line args
     string seqFilNam = argv[1];
     string unkFilNam = argv[2];
 
+        // import sequences
     std::vector<char> s = importSeqFile(seqFilNam);
     s.shrink_to_fit();
     s.pop_back();
@@ -245,36 +252,22 @@ int main(int argc, char* argv[]) {
     matrix<int> sim_mat(s.size() + 1, t.size() + 1);
     sim_mat.clear();
 
-        // mark all sim. matrix cells except first row 
-        // and first column as not ready (-999)
-    for (int i = 1; i <= s.size(); i++)
-        for (int j = 1; j <= t.size(); j++)
-            sim_mat(i, j) = -999;
-
-    // printSimMatrix(sim_mat);
-
         // create and zero-out traceback() tuple matrix
     matrix<tuple<int, int>> tup_mat(s.size() + 1, t.size() + 1);
     tup_mat.clear();
 
-    // printTupMatrix(tup_mat);
+        // mark sim. matrix cells as not ready (except row, col = 0) 
+    for (int i = 1; i <= s.size(); i++)
+        for (int j = 1; j <= t.size(); j++)
+            sim_mat(i, j) = -999;
 
-        // for each cell in the similarity matrix, 
-        // compute and update the S-W score
-    for (int i = 1; i <= s.size(); i++) 
+        // compute & update S-W scores (sim_mat); also source tuples (tup_mat)
+    for (int i = 1; i <= s.size(); i++)
         for (int j = 1; j <= t.size(); j++)
             SmithWaterman(sim_mat, tup_mat, s, t, i, j);
 
-    cout << endl;
-    // printSimMatrix(sim_mat);
-    cout << endl;
-   
+        // retrieve max score and output its location
     auto tup = maxScore(sim_mat);
-    cout << "(" << get<0>(tup) << ", [" << get<1>(tup) << ", " << get<2>(tup) << "])\n";
+    cout << "\n(" << get<0>(tup) << ", [" << get<1>(tup) << ", " << get<2>(tup) << "])\n";
     cout << "similarity matrix dims: (" << sim_mat.size1() << "x" << sim_mat.size2() << ")" << endl;
-   
-    /*
-    cout << "[1751, 48] " << sim_mat(1751, 48) << endl;
-    cout << "[1685, 48] " << sim_mat(1685, 48) << endl; 
-    */
 }
