@@ -1,16 +1,24 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include <queue>
 #include <thread>
+#include <mutex>
+#include <queue>
+#include <chrono>
+#include <utility>
+#include <algorithm>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/io.hpp>
 
 #define GAP_PENALTY 2
-#define MATCH_BONUS 1 
+#define MATCH_BONUS 1
 
 using namespace std;
 using namespace boost::numeric::ublas;
+
+
+std::queue<pair<int, int>> rq;     // readyqueue
+std::mutex rq_mutex;
 
 /*
  * Timer class from https://gist.github.com/gongzhitaao/7062087
@@ -35,8 +43,7 @@ private:
  * returns: [vector<char>]
  */
 std::vector<char> importSeqFile(const string &filename) {
-    // ifstream inFile(filename, ios::binary);
-    ifstream inFile(filename, ios::in);
+    ifstream inFile(filename, ios::binary);
     std::vector<char> fileContents( (istreambuf_iterator<char>(inFile)),
                                      istreambuf_iterator<char>() );
 
@@ -187,7 +194,7 @@ tuple<int, int> source(int idx, int row, int col) {
 void SmithWaterman(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
                    const std::vector<char> &s,
                    const std::vector<char> &t,
-                   std::queue<tuple<int, int>> &rq,
+                //    std::queue<tuple<int, int>> &rq,
                 //    std::vector<tuple<int, int>> &rq,
                    int row, int col) {
 
@@ -214,6 +221,20 @@ void SmithWaterman(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
         // get top score index; update tuple matrix with source() 
     int  top_index = distance(scores.begin(), top_score);
     tmat(row, col) = source(top_index, row, col);
+
+    rq_mutex.lock();
+            // push neighbors onto ready queue
+        if ( (row == s.size() && col != t.size()) || (row != s.size() && col != t.size()) ) {
+            auto east_n  = make_tuple(row, col+1);
+            rq.push(east_n); 
+        }
+        if (col == 1 && row != s.size()) {
+            auto south_n = make_tuple(row+1, col);
+            auto east_n  = make_tuple(row, col+1);
+            rq.push(south_n);
+            rq.push(east_n);
+        } 
+    rq_mutex.unlock();    
 }
 
 /*
@@ -242,8 +263,22 @@ tuple<int, int, int> maxScore(const matrix<int> &smat) {
 }
 
 /*
- * traceback the path from [0, 0] to the max score
- * prints: [vector of cell coordinates]
+ * wrap SmithWaterman() in a thread-join. 
+ */ 
+void threadedSW(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
+                const std::vector<char> &s,
+                const std::vector<char> &t,
+                //    std::queue<tuple<int, int>> &rq,
+                //    std::vector<tuple<int, int>> &rq,
+                int row, int col) {
+
+    std::thread th(SmithWaterman, std::ref(smat), std::ref(tmat),
+                 std::ref(s), std::ref(t), row, col);
+    th.join();
+}
+
+/*
+ *
  */
 void traceback(const matrix<tuple<int, int>> &tmat, const tuple<int, int> &p) {
     std::vector<tuple<int, int>> route;
@@ -283,14 +318,14 @@ int main(int argc, char* argv[]) {
     std::vector<char> s = importSeqFile(seqFilNam);
     s.shrink_to_fit();
     s.pop_back();
-    // cout << "\nSEQUENCE(S): " << seqFilNam << " size: " << s.size();
-    printSeq(s);
+    cout << "\nSEQUENCE(S): " << seqFilNam << " size: " << s.size();
+    // printSeq(s);
 
     std::vector<char> t = importSeqFile(unkFilNam);
     t.shrink_to_fit();
     t.pop_back();
-    // cout << "\nUNKNOWN(T): " << unkFilNam << " size: " << t.size();
-    printSeq(t);
+    cout << "\nUNKNOWN(T): " << unkFilNam << " size: " << t.size();
+    // printSeq(t);
 
         // create and zero-out similarity matrix
     matrix<int> sim_mat(s.size() + 1, t.size() + 1);
@@ -305,12 +340,30 @@ int main(int argc, char* argv[]) {
         for (int j = 1; j <= t.size(); j++)
             sim_mat(i, j) = -999;
 
-
-        // compute & update S-W scores (sim_mat); also source tuples (tup_mat)
+            /*      // compute & update S-W scores (sim_mat); also source tuples (tup_mat)
     for (int i = 1; i <= s.size(); i++)
         for (int j = 1; j <= t.size(); j++)
-            SmithWaterman(sim_mat, tup_mat, s, t, readyqueue, i, j);
+            SmithWaterman(sim_mat, tup_mat, s, t, i, j);*/
 
+
+    int row = 1;
+    int col = 1;
+    auto seed = make_pair(row, col);
+
+    rq.push(seed);
+
+    while (! rq.empty()) {
+        
+        rq_mutex.lock();
+            auto p = rq.front();
+            row = p.first;
+            col = p.second;
+            rq.pop();
+        rq_mutex.unlock();
+    
+        threadedSW(sim_mat, tup_mat, s, t, row, col);
+    }
+    
 
     // cout << endl;
     // printSimMatrix(sim_mat);
@@ -321,7 +374,11 @@ int main(int argc, char* argv[]) {
     auto tup = maxScore(sim_mat);
     cout << "\n\n(" << get<0>(tup) << ", [" << get<1>(tup) << ", " << get<2>(tup) << "])\n";
     cout << "similarity matrix dims: (" << sim_mat.size1() << "x" << sim_mat.size2() << ")" << endl;
-
+    
     double elapsed = tmr.elapsed();
     cout << "\nelapsed time: " << elapsed << " seconds." << endl;
+
+    auto maxop = make_tuple(get<1>(tup), get<2>(tup));
+    traceback(tup_mat, maxop);
+
 }

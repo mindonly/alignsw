@@ -5,15 +5,15 @@ CC=clang
 CFLAGS= -std=c11 -g -Wall -O2
 CXX=clang++
 CXXFLAGS= -std=c++14 -g -Wall -O2
-LDLIBS=
+LDLIBS= -pthread
 
-EXE=align
+EXE=
 RM=rm -f
 ECHO=echo
 
 $(P): $(OBJS)
 
-all:	clear $(EXE) t1 t2
+all:	clear $(P) t1 t2
 
 t1:
 	@echo '************'
@@ -46,7 +46,7 @@ t4:
 t:	t1 t2 t3
 
 clean:
-	$(RM) $(EXE)
+	$(RM) $(P)
 
 clear:
 	@clear
