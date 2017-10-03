@@ -358,7 +358,7 @@ int main(int argc, char* argv[]) {
     std::vector<char> t = importSeqFile(unkFilNam);
     t.shrink_to_fit();
     t.pop_back();
-    cout << "\nUNKNOWN(T): " << unkFilNam << " size: " << t.size();
+    cout << "\n UNKNOWN(T): " << unkFilNam << " size: " << t.size();
     // printSeq(t);
 
         // create and zero-out similarity matrix
@@ -451,7 +451,8 @@ int main(int argc, char* argv[]) {
     double elapsed = tmr.elapsed();
     cout << "\nelapsed time: " << elapsed << " seconds." << endl;
 
-        // traceback the similarity matrix path
+        // print the traceback path
     auto maxop = make_tuple(get<1>(tup), get<2>(tup));
+    cout << "\ntraceback:" << endl;
     traceback(tup_mat, maxop);
 }

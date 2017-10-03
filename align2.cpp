@@ -394,5 +394,6 @@ int main(int argc, char* argv[]) {
 
         // print the traceback path
     auto maxop = make_tuple(get<1>(tup), get<2>(tup));
+    cout << "\ntraceback:" << endl;
     traceback(tup_mat, maxop);
 }
