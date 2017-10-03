@@ -275,7 +275,9 @@ void threadedSW(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
 }
 
 /*
- *
+ * SmithWaterman() in a row chunk wrapper, given a starting pair
+ * and ending pair in the same row, S-W is calculated only for
+ * those cells in that row.  data dependency on row above.
  */
 void rowChunkSW(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
                 const std::vector<char> &s,
@@ -294,7 +296,8 @@ void rowChunkSW(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
 } 
 
 /*
- *
+ * rowChunkSW() in a wrapper returning a thread
+ * returns: [std::thread]
  */
 std::thread th_rowChunkSW(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
                           const std::vector<char> &s,
@@ -371,12 +374,19 @@ int main(int argc, char* argv[]) {
         for (int j = 1; j <= t.size(); j++)
             sim_mat(i, j) = -999;
 
+        // main task:
+        // using modular arithmetic allocate multiple threads per row
+        // 1st row 1 thread; 2nd row 2 threads; 3rd row 4 threads
+        // only works for rows evenly divisible by the smallest chunk:
+        // case 0: -> (48 / 4 = 12)
+
+        // declare start/finish pairs; threads 
     pair<int, int> beg_pair1, beg_pair2, beg_pair3, beg_pair4;
     pair<int, int> end_pair1, end_pair2, end_pair3, end_pair4;
     std::thread t1, t2, t3, t4;
 
     for (int i = 1; i <= s.size(); i++) {
-        switch (i % 2) {
+        switch (i % 3) {
             case 1: {
                 beg_pair1 = make_pair(i, 1);
                 end_pair1 = make_pair(i, t.size());

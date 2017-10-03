@@ -265,14 +265,12 @@ void traceback(const matrix<tuple<int, int>> &tmat, const tuple<int, int> &p) {
     route.push_back(p);
 
     auto cell = tmat(get<0>(p), get<1>(p));
-
     while (cell != make_tuple(0, 0)) {
        route.push_back(cell);
        cell = tmat(get<0>(cell), get<1>(cell)); 
     }
 
     std::reverse(route.begin(), route.end());
-
     for (auto it=route.begin(); it!= route.end(); it++)
         cout << "[" << get<0>(*it) << ", " << get<1>(*it) << "] ";
     cout << endl;
@@ -298,14 +296,14 @@ int main(int argc, char* argv[]) {
     std::vector<char> s = importSeqFile(seqFilNam);
     s.shrink_to_fit();
     s.pop_back();
-    // cout << "\nSEQUENCE(S): " << seqFilNam << " size: " << s.size();
-    printSeq(s);
+    cout << "\nSEQUENCE(S): " << seqFilNam << " size: " << s.size();
+    // printSeq(s);
 
     std::vector<char> t = importSeqFile(unkFilNam);
     t.shrink_to_fit();
     t.pop_back();
-    // cout << "\nUNKNOWN(T): " << unkFilNam << " size: " << t.size();
-    printSeq(t);
+    cout << "\n UNKNOWN(T): " << unkFilNam << " size: " << t.size();
+    // printSeq(t);
 
         // create and zero-out similarity matrix
     matrix<int> sim_mat(s.size() + 1, t.size() + 1);
@@ -320,12 +318,11 @@ int main(int argc, char* argv[]) {
         for (int j = 1; j <= t.size(); j++)
             sim_mat(i, j) = -999;
 
-
+        // main task:
         // compute & update S-W scores (sim_mat); also source tuples (tup_mat)
     for (int i = 1; i <= s.size(); i++)
         for (int j = 1; j <= t.size(); j++)
             SmithWaterman(sim_mat, tup_mat, s, t, i, j);
-
 
     // cout << endl;
     // printSimMatrix(sim_mat);
@@ -337,6 +334,7 @@ int main(int argc, char* argv[]) {
     cout << "\n\n(" << get<0>(tup) << ", [" << get<1>(tup) << ", " << get<2>(tup) << "])\n";
     cout << "similarity matrix dims: (" << sim_mat.size1() << "x" << sim_mat.size2() << ")" << endl;
 
+        // stop the timer
     double elapsed = tmr.elapsed();
     cout << "\nelapsed time: " << elapsed << " seconds." << endl;
 }

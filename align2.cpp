@@ -206,6 +206,7 @@ tuple<int, int> source(int idx, int row, int col) {
 /*
  * update Smith-Waterman score for each sim. matrix (smat) cell;
  * also update source for each score in tuple matrix (tmat)
+ * threads: use mutex to lock global readyqueue
  */
 void SmithWaterman(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
                    const std::vector<char> &s,
@@ -340,7 +341,7 @@ int main(int argc, char* argv[]) {
     std::vector<char> t = importSeqFile(unkFilNam);
     t.shrink_to_fit();
     t.pop_back();
-    cout << "\nUNKNOWN(T): " << unkFilNam << " size: " << t.size();
+    cout << "\n UNKNOWN(T): " << unkFilNam << " size: " << t.size();
     // printSeq(t);
 
         // create and zero-out similarity matrix
@@ -356,18 +357,15 @@ int main(int argc, char* argv[]) {
         for (int j = 1; j <= t.size(); j++)
             sim_mat(i, j) = -999;
 
-            /*      // compute & update S-W scores (sim_mat); also source tuples (tup_mat)
-    for (int i = 1; i <= s.size(); i++)
-        for (int j = 1; j <= t.size(); j++)
-            SmithWaterman(sim_mat, tup_mat, s, t, i, j);*/
-
-
+        // main task:
+        // kick off multi-threaded sequence
+        // main() pop()s the readyqueue while
+        // SmithWaterman() push()es onto it
     int row = 1;
     int col = 1;
     auto seed = make_pair(row, col);
 
     rq.push(seed);
-
     while (! rq.empty()) {
         
         rq_mutex.lock();
@@ -379,7 +377,6 @@ int main(int argc, char* argv[]) {
     
         threadedSW(sim_mat, tup_mat, s, t, row, col);
     }
-    
 
     // cout << endl;
     // printSimMatrix(sim_mat);
@@ -390,11 +387,12 @@ int main(int argc, char* argv[]) {
     auto tup = maxScore(sim_mat);
     cout << "\n\n(" << get<0>(tup) << ", [" << get<1>(tup) << ", " << get<2>(tup) << "])\n";
     cout << "similarity matrix dims: (" << sim_mat.size1() << "x" << sim_mat.size2() << ")" << endl;
-    
+   
+        // stop the timer
     double elapsed = tmr.elapsed();
     cout << "\nelapsed time: " << elapsed << " seconds." << endl;
 
+        // print the traceback path
     auto maxop = make_tuple(get<1>(tup), get<2>(tup));
     traceback(tup_mat, maxop);
-
 }
