@@ -1,5 +1,5 @@
 /*
- * align2.cpp
+ * align3.cpp
  * --
  * Rob Sanchez
  * Parallelized Local Sequence Alignment
@@ -7,7 +7,7 @@
  * CIS 677, F2017
  * Wolffe
  * --
- * multi-threaded readyqueue version
+ * multi-threaded rowchunk version
 */
 
 
@@ -29,9 +29,6 @@
 using namespace std;
 using namespace boost::numeric::ublas;
 
-
-std::queue<pair<int, int>> rq;     // readyqueue
-std::mutex rq_mutex;
 
 /*
  * Timer class pilfered from https://gist.github.com/gongzhitaao/7062087
@@ -237,20 +234,6 @@ void SmithWaterman(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
         // get top score index; update tuple matrix with source() 
     int  top_index = distance(scores.begin(), top_score);
     tmat(row, col) = source(top_index, row, col);
-
-    rq_mutex.lock();
-            // push neighbors onto ready queue
-        if ( (row == s.size() && col != t.size()) || (row != s.size() && col != t.size()) ) {
-            auto east_n  = make_tuple(row, col+1);
-            rq.push(east_n); 
-        }
-        if (col == 1 && row != s.size()) {
-            auto south_n = make_tuple(row+1, col);
-            auto east_n  = make_tuple(row, col+1);
-            rq.push(south_n);
-            rq.push(east_n);
-        } 
-    rq_mutex.unlock();    
 }
 
 /*
@@ -284,8 +267,6 @@ tuple<int, int, int> maxScore(const matrix<int> &smat) {
 void threadedSW(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
                 const std::vector<char> &s,
                 const std::vector<char> &t,
-                //    std::queue<tuple<int, int>> &rq,
-                //    std::vector<tuple<int, int>> &rq,
                 int row, int col) {
 
     std::thread th(SmithWaterman, std::ref(smat), std::ref(tmat),
@@ -295,6 +276,40 @@ void threadedSW(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
 
 /*
  *
+ */
+void rowChunkSW(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
+                const std::vector<char> &s,
+                const std::vector<char> &t,
+                const pair<int, int> &beg, const pair<int, int> &end) {
+
+    if (beg.first != end.first) {
+        cerr << "\nrowChunkSW() error: this operation must stay on the same row.\n";
+        exit(-1); 
+    }
+
+        // e.g [1, 1] -> [1, 10]
+    for (int i = beg.first; i == end.first; i++)
+        for (int j = beg.second; j <= end.second; j++)
+            SmithWaterman(smat, tmat, s, t, i, j); 
+} 
+
+/*
+ *
+ */
+std::thread th_rowChunkSW(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
+                          const std::vector<char> &s,
+                          const std::vector<char> &t,
+                          const pair<int, int> &beg, const pair<int, int> &end) {
+
+    std::thread th(rowChunkSW, std::ref(smat), std::ref(tmat), 
+                  std::ref(s), std::ref(t), std::ref(beg), std::ref(end));
+
+    return th;
+}
+
+/*
+ * trace back the path from [0, 0] to the max score
+ * prints: [vector of cell coordinates]
  */
 void traceback(const matrix<tuple<int, int>> &tmat, const tuple<int, int> &p) {
     std::vector<tuple<int, int>> route;
@@ -356,30 +371,61 @@ int main(int argc, char* argv[]) {
         for (int j = 1; j <= t.size(); j++)
             sim_mat(i, j) = -999;
 
-            /*      // compute & update S-W scores (sim_mat); also source tuples (tup_mat)
-    for (int i = 1; i <= s.size(); i++)
-        for (int j = 1; j <= t.size(); j++)
-            SmithWaterman(sim_mat, tup_mat, s, t, i, j);*/
+    pair<int, int> beg_pair1, beg_pair2, beg_pair3, beg_pair4;
+    pair<int, int> end_pair1, end_pair2, end_pair3, end_pair4;
+    std::thread t1, t2, t3, t4;
 
+    for (int i = 1; i <= s.size(); i++) {
+        switch (i % 2) {
+            case 1: {
+                beg_pair1 = make_pair(i, 1);
+                end_pair1 = make_pair(i, t.size());
+                
+                std::thread t1 = th_rowChunkSW(sim_mat, tup_mat, s, t, beg_pair1, end_pair1);
+                
+                t1.join();
+                break;
+            }
+            case 2: {
+                beg_pair1 = make_pair(i, 1);
+                end_pair1 = make_pair(i, (int) t.size()/2);
+                
+                beg_pair2 = make_pair(i, (int) t.size()/2 + 1);
+                end_pair2 = make_pair(i, t.size());
+                
+                t1 = th_rowChunkSW(sim_mat, tup_mat, s, t, beg_pair1, end_pair1); 
+                t2 = th_rowChunkSW(sim_mat, tup_mat, s, t, beg_pair2, end_pair2);
 
-    int row = 1;
-    int col = 1;
-    auto seed = make_pair(row, col);
+                t1.join();
+                t2.join();
+                break;
+            }
+            case 0: {
+                beg_pair1 = make_pair(i, 1);
+                end_pair1 = make_pair(i, (int) t.size()/4);
+                
+                beg_pair2 = make_pair(i, (int) t.size()/4 + 1);
+                end_pair2 = make_pair(i, (int) t.size()/2);
+                
+                beg_pair3 = make_pair(i, (int) t.size()/2 + 1);
+                end_pair3 = make_pair(i, (int) t.size() * 3/4);
+                
+                beg_pair4 = make_pair(i, (int) t.size() * 3/4 + 1);
+                end_pair4 = make_pair(i, (int) t.size());
+                
+                t1 = th_rowChunkSW(sim_mat, tup_mat, s, t, beg_pair1, end_pair1);
+                t2 = th_rowChunkSW(sim_mat, tup_mat, s, t, beg_pair2, end_pair2);
+                t3 = th_rowChunkSW(sim_mat, tup_mat, s, t, beg_pair3, end_pair3);
+                t4 = th_rowChunkSW(sim_mat, tup_mat, s, t, beg_pair4, end_pair4);
 
-    rq.push(seed);
-
-    while (! rq.empty()) {
-        
-        rq_mutex.lock();
-            auto p = rq.front();
-            row = p.first;
-            col = p.second;
-            rq.pop();
-        rq_mutex.unlock();
-    
-        threadedSW(sim_mat, tup_mat, s, t, row, col);
-    }
-    
+                t1.join();
+                t2.join();
+                t3.join();
+                t4.join();
+                break;
+            }
+        }
+    } 
 
     // cout << endl;
     // printSimMatrix(sim_mat);
@@ -390,11 +436,12 @@ int main(int argc, char* argv[]) {
     auto tup = maxScore(sim_mat);
     cout << "\n\n(" << get<0>(tup) << ", [" << get<1>(tup) << ", " << get<2>(tup) << "])\n";
     cout << "similarity matrix dims: (" << sim_mat.size1() << "x" << sim_mat.size2() << ")" << endl;
-    
+   
+        // stop the timer
     double elapsed = tmr.elapsed();
     cout << "\nelapsed time: " << elapsed << " seconds." << endl;
 
+        // traceback the similarity matrix path
     auto maxop = make_tuple(get<1>(tup), get<2>(tup));
     traceback(tup_mat, maxop);
-
 }

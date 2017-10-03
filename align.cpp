@@ -1,3 +1,16 @@
+/*
+ * align.cpp
+ * --
+ * Rob Sanchez
+ * Parallelized Local Sequence Alignment
+ * programming assignment #2
+ * CIS 677, F2017
+ * Wolffe
+ * --
+ * single-threaded version
+*/
+
+
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -12,8 +25,12 @@
 using namespace std;
 using namespace boost::numeric::ublas;
 
+
 /*
- * Timer class from https://gist.github.com/gongzhitaao/7062087
+ * Timer class pilfered from https://gist.github.com/gongzhitaao/7062087
+ * Timer() constructs the timer.
+ * .reset() resets the timer.
+ * .elapsed() returns elapsed seconds (double) since last reset.
  */
 class Timer
 {
@@ -187,8 +204,6 @@ tuple<int, int> source(int idx, int row, int col) {
 void SmithWaterman(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
                    const std::vector<char> &s,
                    const std::vector<char> &t,
-                   std::queue<tuple<int, int>> &rq,
-                //    std::vector<tuple<int, int>> &rq,
                    int row, int col) {
 
     if (row == 0 || col == 0) {
@@ -309,7 +324,7 @@ int main(int argc, char* argv[]) {
         // compute & update S-W scores (sim_mat); also source tuples (tup_mat)
     for (int i = 1; i <= s.size(); i++)
         for (int j = 1; j <= t.size(); j++)
-            SmithWaterman(sim_mat, tup_mat, s, t, readyqueue, i, j);
+            SmithWaterman(sim_mat, tup_mat, s, t, i, j);
 
 
     // cout << endl;
