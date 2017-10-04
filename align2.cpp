@@ -211,8 +211,6 @@ tuple<int, int> source(int idx, int row, int col) {
 void SmithWaterman(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
                    const std::vector<char> &s,
                    const std::vector<char> &t,
-                //    std::queue<tuple<int, int>> &rq,
-                //    std::vector<tuple<int, int>> &rq,
                    int row, int col) {
 
     if (row == 0 || col == 0) {
@@ -285,8 +283,6 @@ tuple<int, int, int> maxScore(const matrix<int> &smat) {
 void threadedSW(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
                 const std::vector<char> &s,
                 const std::vector<char> &t,
-                //    std::queue<tuple<int, int>> &rq,
-                //    std::vector<tuple<int, int>> &rq,
                 int row, int col) {
 
     std::thread th(SmithWaterman, std::ref(smat), std::ref(tmat),
@@ -385,12 +381,13 @@ int main(int argc, char* argv[]) {
 
         // retrieve max score and output its location
     auto tup = maxScore(sim_mat);
-    cout << "\n\n(" << get<0>(tup) << ", [" << get<1>(tup) << ", " << get<2>(tup) << "])\n";
+    cout << "\n\nmax score, location:\n(" << get<0>(tup) << ", [" << get<1>(tup) << ", " << get<2>(tup) << "])\n";
     cout << "similarity matrix dims: (" << sim_mat.size1() << "x" << sim_mat.size2() << ")" << endl;
    
         // stop the timer
     double elapsed = tmr.elapsed();
-    cout << "\nelapsed time: " << elapsed << " seconds." << endl;
+    cout << "\n** multi-threaded readyqueue**" << endl;
+    cout << "elapsed time: " << elapsed << " seconds." << endl;
 
         // print the traceback path
     auto maxop = make_tuple(get<1>(tup), get<2>(tup));

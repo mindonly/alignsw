@@ -331,12 +331,13 @@ int main(int argc, char* argv[]) {
 
         // retrieve max score and output its location
     auto tup = maxScore(sim_mat);
-    cout << "\n\n(" << get<0>(tup) << ", [" << get<1>(tup) << ", " << get<2>(tup) << "])\n";
+    cout << "\n\nmax score, location:\n(" << get<0>(tup) << ", [" << get<1>(tup) << ", " << get<2>(tup) << "])\n";
     cout << "similarity matrix dims: (" << sim_mat.size1() << "x" << sim_mat.size2() << ")" << endl;
 
         // stop the timer
     double elapsed = tmr.elapsed();
-    cout << "\nelapsed time: " << elapsed << " seconds." << endl;
+    cout << "\n** single-threaded **" << endl;
+    cout << "elapsed time: " << elapsed << " seconds." << endl;
 
         // print the traceback path
     auto maxop = make_tuple(get<1>(tup), get<2>(tup));
