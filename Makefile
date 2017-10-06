@@ -4,7 +4,7 @@ OBJS=
 CC=clang
 CFLAGS= -std=c11 -g -Wall -O2
 CXX=clang++
-CXXFLAGS= -std=c++11 -g -Wall -O2
+CXXFLAGS= -std=c++14 -g -Wall -O2
 LDLIBS= -pthread
 
 EXE=

@@ -240,12 +240,12 @@ void SmithWaterman(matrix<int> &smat, matrix<tuple<int, int>> &tmat,
     rq_mutex.lock();
             // push neighbors onto ready queue
         if ( (row == s.size() && col != t.size()) || (row != s.size() && col != t.size()) ) {
-            auto east_n  = make_tuple(row, col+1);
+            auto east_n  = make_pair(row, col+1);
             rq.push(east_n); 
         }
         if (col == 1 && row != s.size()) {
-            auto south_n = make_tuple(row+1, col);
-            auto east_n  = make_tuple(row, col+1);
+            auto south_n = make_pair(row+1, col);
+            auto east_n  = make_pair(row, col+1);
             rq.push(south_n);
             rq.push(east_n);
         } 
